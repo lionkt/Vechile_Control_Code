@@ -12,7 +12,7 @@
 
 function MPCtoolboxCVX
   FirstOrderExample;
-  % WindPowerStorageExample;
+%   WindPowerStorageExample;
 end
 
 function FirstOrderExample
