@@ -20,10 +20,10 @@ G = 9.81;   % 重力加速度
 max_ux = 18;    % 车辆纵向的最大速度
 init_ux = max_ux;    % 进入的longitudinal速度，18m/s
 
-
 %% Path generation
+%具体的方程来自Collision Avoidance and Stabilization for Autonomous Vehicles in Emergency Scenarios
 %%% 精细化计算轨迹参数
-lambda = 24/65;         % arc占据整个弧线的比例
+lambda = 24/67;         % arc占据整个弧线的比例
 alpha = 2*(pi/2);       % 起止点转角
 d = (-0.5) - (-30.5);
 z_iter = [0:0.00001:1/2];
@@ -35,7 +35,6 @@ fei_z = [fei_z; clothoid_part(:)];
 D_alpha_lambda = 2*trapz(z_iter, cos(fei_z));
 L = d/D_alpha_lambda;       % curve的总长度
 delta = 4*alpha/(L*L*(1-lambda*lambda));
-
 %%% 根据参数计算轨迹
 total_path_length = 120;        % path的总长度为120m
 local_curvature_max = delta*L*(1-lambda)/2;     % curvature的最大值
@@ -47,6 +46,7 @@ key_pos_array = [start_dist;turn_dist_1;turn_dist_2;end_dist];
 %%% 轨迹生成测试
 ux_array = init_ux;
 ux_sn = init_ux;
+now_pos_arr = 0;
 k_sn_pre = 0;
 now_pos = 0;
 ax_sn = 0;
@@ -60,7 +60,7 @@ end
 plot(pos_array,curvature_arr);
 title('curvature');
 
-
+%%% 时间迭代方法
 % while(now_pos < total_path_length)
 %     k_sn = get_curvature(now_pos,key_pos_array,delta,lambda,L);    % 当前的curvature
 %     ax_sn_max = sqrt((miu_des*G)^2 - (ux_sn*ux_sn*k_sn)^2); % 环境能提供的最大加速度
@@ -87,21 +87,21 @@ title('curvature');
 % plot(ux_array);
 % title('speed');
 
-pos_step = 0.1;
-ax_sn_pre = 0;
+%%% 位置迭代方法
+pos_step = 0.1;     %位置迭代的步长
 ux_lower = sqrt(miu_des*G/local_curvature_max);   %速度下界
 while(now_pos < total_path_length)
     next_pos = now_pos + pos_step;
     if now_pos >= key_pos_array(1) && now_pos <= key_pos_array(4)
+        %%%% 进入弯道时
         k_sn = get_curvature(now_pos,key_pos_array,delta,lambda,L);    % 当前的curvature
-        if ((miu_des*G)^2 < (ux_sn*ux_sn*k_sn)^2)
-            ax_sn_max = 0.91*abs(ax_sn_pre);
-        else
-            ax_sn_max = sqrt((miu_des*G)^2 - (ux_sn*ux_sn*k_sn)^2); % 环境能提供的最大加速度
-        end
+        ax_sn_max = sqrt((miu_des*G)^2 - (ux_sn*ux_sn*k_sn)^2); % 环境能提供的最大加速度
         % 对加速度符号进行调整    
-        if (ux_sn > ux_lower && k_sn_pre < k_sn)    %入弯时速度大于下界
+        if (k_sn_pre < k_sn)    %入弯时
             ax_sn = -ax_sn_max;
+            if (ux_sn <= ux_lower) % 小于速度下界则不再减速
+               ax_sn = 0;
+            end
         end
         if (k_sn_pre > k_sn)    %出弯时
             ax_sn = ax_sn_max;
@@ -109,19 +109,24 @@ while(now_pos < total_path_length)
         if (ux_sn >= max_ux && ax_sn > 0)    %速度达到最值时
             ax_sn = 0;
         end
-        t_sn = (-ux_sn + sqrt(ux_sn^2 + 2*ax_sn*(next_pos-now_pos)))/ax_sn;
-        ux_sn_n = ux_sn + t_sn*ax_sn;   % 计算下一刻的速度
+        if abs(ax_sn)<=1e-12    % ax_sn近似取零
+            ux_sn_n = ux_sn;
+        else
+            t_sn = (-ux_sn + sqrt(ux_sn^2 + 2*ax_sn*(next_pos-now_pos)))/ax_sn;
+            ux_sn_n = ux_sn + t_sn*ax_sn;   % 计算下一刻的速度
+        end
     else
-        ux_sn_n = ux_sn;
+        %%%% 不在弯道时
+        ux_sn_n = ux_sn;        
     end
     now_pos = next_pos;
+    now_pos_arr = [now_pos_arr;now_pos];
     ux_array = [ux_array; ux_sn_n];
-    ax_sn_pre = ax_sn;
     ux_sn = ux_sn_n;
     k_sn_pre = k_sn;
 end
 figure;
-plot(ux_array);
+plot(now_pos_arr,ux_array);
 title('speed');
 
 
