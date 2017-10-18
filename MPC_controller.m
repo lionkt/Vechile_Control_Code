@@ -15,7 +15,7 @@ Ts_long = 0.2;
 
 %%%% 初始条件的参数
 miu = 0.85; % 摩擦系数
-miu_des = 0.9*miu;  % 理想的摩擦利用率
+miu_des = 1*miu;  % 理想的摩擦利用率
 G = 9.81;   % 重力加速度
 max_ux = 18;    % 车辆纵向的最大速度
 init_ux = max_ux;    % 进入的longitudinal速度，18m/s
@@ -23,7 +23,7 @@ init_ux = max_ux;    % 进入的longitudinal速度，18m/s
 
 %% Path generation
 %%% 精细化计算轨迹参数
-lambda = 25/65;         % arc占据整个弧线的比例
+lambda = 24/65;         % arc占据整个弧线的比例
 alpha = 2*(pi/2);       % 起止点转角
 d = (-0.5) - (-30.5);
 z_iter = [0:0.00001:1/2];
@@ -60,31 +60,70 @@ end
 plot(pos_array,curvature_arr);
 title('curvature');
 
-figure;
+
+% while(now_pos < total_path_length)
+%     k_sn = get_curvature(now_pos,key_pos_array,delta,lambda,L);    % 当前的curvature
+%     ax_sn_max = sqrt((miu_des*G)^2 - (ux_sn*ux_sn*k_sn)^2); % 环境能提供的最大加速度
+% %     ax_sn_max = norm(ax_sn_max);
+%     % 对加速度符号进行调整
+%     ux_lower = sqrt(miu_des*G/local_curvature_max);   %速度下界
+%     if (ux_sn > ux_lower && k_sn_pre < k_sn)    %入弯时速度大于下界
+%         ax_sn = -ax_sn_max;
+%     end
+%     if (k_sn_pre > k_sn)    %出弯时
+%         ax_sn = ax_sn_max;
+%     end
+%     if (ux_sn >= max_ux && ax_sn > 0)    %速度达到最值时
+%         ax_sn = 0;
+%     end
+%     next_pos = now_pos + ux_sn*Ts + ax_sn*Ts*Ts/2;  % 下一刻的位置
+%     ux_sn_n = ux_sn + Ts*ax_sn;   % 计算下一刻的速度
+%     now_pos = next_pos;
+%     ux_array = [ux_array; ux_sn_n];
+%     ux_sn = ux_sn_n;
+%     k_sn_pre = k_sn;
+% end
+% figure;
+% plot(ux_array);
+% title('speed');
+
+pos_step = 0.1;
+ax_sn_pre = 0;
+ux_lower = sqrt(miu_des*G/local_curvature_max);   %速度下界
 while(now_pos < total_path_length)
-    k_sn = get_curvature(now_pos,key_pos_array,delta,lambda,L);    % 当前的curvature
-    ax_sn_max = sqrt((miu_des*G)^2 - (ux_sn*ux_sn*k_sn)^2); % 环境能提供的最大加速度
-%     ax_sn_max = norm(ax_sn_max);
-    %对加速度进行调整
-    ux_lower = sqrt(miu_des*G/local_curvature_max);   %速度下界
-    if (ux_sn > ux_lower && k_sn_pre < k_sn)    %入弯时速度大于下界
-        ax_sn = -ax_sn_max;
+    next_pos = now_pos + pos_step;
+    if now_pos >= key_pos_array(1) && now_pos <= key_pos_array(4)
+        k_sn = get_curvature(now_pos,key_pos_array,delta,lambda,L);    % 当前的curvature
+        if ((miu_des*G)^2 < (ux_sn*ux_sn*k_sn)^2)
+            ax_sn_max = 0.91*abs(ax_sn_pre);
+        else
+            ax_sn_max = sqrt((miu_des*G)^2 - (ux_sn*ux_sn*k_sn)^2); % 环境能提供的最大加速度
+        end
+        % 对加速度符号进行调整    
+        if (ux_sn > ux_lower && k_sn_pre < k_sn)    %入弯时速度大于下界
+            ax_sn = -ax_sn_max;
+        end
+        if (k_sn_pre > k_sn)    %出弯时
+            ax_sn = ax_sn_max;
+        end
+        if (ux_sn >= max_ux && ax_sn > 0)    %速度达到最值时
+            ax_sn = 0;
+        end
+        t_sn = (-ux_sn + sqrt(ux_sn^2 + 2*ax_sn*(next_pos-now_pos)))/ax_sn;
+        ux_sn_n = ux_sn + t_sn*ax_sn;   % 计算下一刻的速度
+    else
+        ux_sn_n = ux_sn;
     end
-    if (k_sn_pre > k_sn)    %出弯时
-        ax_sn = ax_sn_max;
-    end
-    if (ux_sn >= max_ux && ax_sn > 0)    %速度达到最值时
-        ax_sn = 0;
-    end
-    next_pos = now_pos + ux_sn*Ts + ax_sn*Ts*Ts/2;  % 下一刻的位置
-    ux_sn_n = ux_sn + Ts*ax_sn;   % 计算下一刻的速度
     now_pos = next_pos;
     ux_array = [ux_array; ux_sn_n];
+    ax_sn_pre = ax_sn;
     ux_sn = ux_sn_n;
     k_sn_pre = k_sn;
 end
+figure;
 plot(ux_array);
 title('speed');
+
 
 %% 约束的参数
 
