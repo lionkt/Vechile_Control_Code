@@ -10,8 +10,15 @@ Ts = 0.01;  % MPC控制周期
 Ts_short = 0.01;    
 Ts_long = 0.2;
 
-%%%% 车辆相关的参数
-
+%%%% Stanford X1车辆相关的参数
+% 数据来自博士论文：Shared Vehicle Control Using Safe Driving
+m = 1973;   % 质量kg
+Izz = 2000; % 转动惯量kg/m^2
+a = 1.53;   % 前轮到质心距离m
+b = 1.23;   % 后轮到质心距离m
+d = 1.87;   % 车宽m
+Caf = 100;  % front cornering stiffness kN/rad
+Car = 140;  % rear cornering stiffness kN/rad
 
 %%%% 初始条件的参数
 miu = 0.85; % 摩擦系数
